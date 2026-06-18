@@ -1,0 +1,75 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Tahoma;
+}
+/* Header styles */
+header {
+    background-color: wheat;
+    color: black;
+
+    height: 10dvh;
+    width: 100dvw;
+    font-size: 2dvh;
+
+    position: relative;
+    top: 0;
+    left: 0;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+header div {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    height: 100%;
+    width: 20%;
+}
+header div img {
+    height: 90%;
+    width: auto;
+    margin-right: 10px;
+}
+
+header nav ul {
+    display: flex;
+    flex-direction: row;
+
+}
+
+header nav ul li {
+    list-style: none;
+    margin: 0 10px;
+}
+
+header nav ul li a {
+    color: black;
+    font-weight: bold;
+    text-decoration: none;
+
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+header nav ul li a svg {
+    margin-left: 5px;
+}
+header div a {
+    color: black;
+    font-weight: bold;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+}
+
+header div a p {
+    margin-left: 5px;
+    margin-right: 5px;
+}
