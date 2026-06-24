@@ -5,7 +5,9 @@ import Home from './pages/Home';
 import Students from './pages/Students';
 
 import Teachers from './pages/Teachers';
-import Teachers_Grades from './pages/Teacher_Grades';
+import Teacher_Grades from './pages/Teacher_Grades';
+import Teacher_Broadcast from './pages/Teacher_Broadcast';
+import Teacher_Timetables from './pages/Teacher_Timetables';
 
 import About from './pages/About';
 import Login from './pages/Login';
@@ -21,7 +23,9 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/students" element={<Students />} />
             <Route path="/teachers" element={<Teachers />} />
-            <Route path="/teacher-Grades" element={<Teachers_Grades/>}/>
+            <Route path="/teacher_grades" element={<Teacher_Grades/>}/>
+            <Route path="/teacher_broadcast" element={<Teacher_Broadcast/>}/>
+            <Route path="/teacher_timetables" element={<Teacher_Timetables/>}/>
             <Route path="/about" element={<About />} />
             <Route path="/login" element={<Login />} />
             <Route path="/florenceConnect" element={<FlorenceConnect />} />

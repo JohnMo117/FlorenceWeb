@@ -1,0 +1,42 @@
+.teacher-timetables {
+  width: 100%;
+}
+
+.timetable-panel {
+  padding: 1.5rem;
+}
+
+.timetable-panel h1 {
+  margin-bottom: 0.25rem;
+}
+
+.timetable-panel p {
+  margin: 0 0 1rem;
+}
+
+.timetable-table-wrapper {
+  overflow-x: auto;
+}
+
+.timetable-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 760px;
+}
+
+.timetable-table th,
+.timetable-table td {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 0.75rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.timetable-table thead th {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.timetable-table tbody th {
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.08);
+}
