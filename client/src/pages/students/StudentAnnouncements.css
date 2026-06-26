@@ -1,0 +1,27 @@
+.announcement-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.announcement-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.announcement-topline {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.announcement-topline small,
+.announcement-audience {
+  color: var(--text-secondary);
+}
+
+.announcement-card p {
+  margin-bottom: 0;
+}

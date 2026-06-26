@@ -1,0 +1,18 @@
+.admin-note-panel ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.admin-note-panel li {
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+
+.admin-note-panel li:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}

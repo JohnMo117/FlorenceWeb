@@ -1,0 +1,11 @@
+.table-panel {
+  overflow-x: auto;
+}
+
+.timetable-table {
+  min-width: 760px;
+}
+
+.timetable-table tbody th {
+  white-space: nowrap;
+}

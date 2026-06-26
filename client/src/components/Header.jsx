@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, GraduationCap, Network, Info, LogIn } from 'lucide-react';
+import { Home, Users, ShieldCheck, GraduationCap, Network, Info, LogIn } from 'lucide-react';
 import './Header.css';
 
 const Header = () => {
@@ -9,10 +9,13 @@ const Header = () => {
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
     { path: '/students', label: 'Students', icon: Users },
+    { path: '/administration', label: 'Administration', icon: ShieldCheck },
     { path: '/teachers', label: 'Teachers', icon: GraduationCap },
     { path: '/florenceConnect', label: 'Florence Connect', icon: Network },
     { path: '/about', label: 'About', icon: Info },
   ];
+
+  const isActivePath = (path) => (path === '/' ? location.pathname === '/' : location.pathname === path || location.pathname.startsWith(`${path}/`));
 
   return (
     <header className="main-header glass-panel">
@@ -27,7 +30,7 @@ const Header = () => {
         <ul>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = isActivePath(item.path);
             return (
               <li key={item.path}>
                 <Link to={item.path} className={`nav-link ${isActive ? 'active' : ''}`}>
