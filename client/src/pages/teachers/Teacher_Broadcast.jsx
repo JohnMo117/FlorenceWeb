@@ -1,69 +1,96 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import './Teacher_Broadcast.css';
 
-const initialAnnouncements = [
-  {
-    id: 'announcement-1',
-    title: 'Welcome to this week',
-    audience: 'All students',
-    message: 'Please review Unit 5 notes before Thursday. We will open with a quick quiz.',
-    createdAt: 'Today at 08:30',
-  },
-];
-
-const createAnnouncementId = () => `announcement-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
+// TODO(security): Replace hardcoded teacherId with JWT-derived identity.
+const CURRENT_TEACHER_ID = 'T1';
 
 const Teacher_Broadcast = () => {
-  const [announcements, setAnnouncements] = useState(initialAnnouncements);
+  const [announcements, setAnnouncements] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [groups, setGroups] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
     audience: 'All students',
     message: '',
   });
 
+  // Fetch teacher's announcements and groups
+  useEffect(() => {
+    Promise.all([
+      fetch(`/api/teachers/announcements?teacherId=${CURRENT_TEACHER_ID}`).then((r) => {
+        if (!r.ok) throw new Error('Failed to load announcements');
+        return r.json();
+      }),
+      fetch(`/api/teachers/groups?teacherId=${CURRENT_TEACHER_ID}`).then((r) => {
+        if (!r.ok) throw new Error('Failed to load groups');
+        return r.json();
+      }),
+    ])
+      .then(([announcementsData, groupsData]) => {
+        setAnnouncements(announcementsData);
+        setGroups(groupsData);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
   const onFieldChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
   };
 
-  const onSubmit = (event) => {
+  const onSubmit = async (event) => {
     event.preventDefault();
 
     if (!formData.title.trim() || !formData.message.trim()) {
       return;
     }
 
-    const now = new Date();
-    const createdAt = now.toLocaleString([], {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: 'short',
-    });
+    try {
+      const response = await fetch('/api/teachers/announcements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherId: CURRENT_TEACHER_ID,
+          title: formData.title.trim(),
+          audience: formData.audience,
+          message: formData.message.trim(),
+        }),
+      });
 
-    const newAnnouncement = {
-      id: createAnnouncementId(),
-      title: formData.title.trim(),
-      audience: formData.audience,
-      message: formData.message.trim(),
-      createdAt,
-    };
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create announcement');
+      }
 
-    setAnnouncements((current) => [newAnnouncement, ...current]);
-    setFormData({
-      title: '',
-      audience: 'All students',
-      message: '',
-    });
+      const newAnnouncement = await response.json();
+      setAnnouncements((current) => [newAnnouncement, ...current]);
+      setFormData({ title: '', audience: 'All students', message: '' });
+    } catch (err) {
+      setError(err.message);
+    }
   };
+
+  if (loading) return <div className="teacher-broadcast page-container"><p>Loading...</p></div>;
 
   return (
     <div className="teacher-broadcast page-container">
       <section className="glass-panel broadcast-header">
         <span className="broadcast-tag">Teacher tools</span>
         <h1>Broadcast announcements</h1>
-        <p>Write an announcement and publish it instantly to your class feed (mock local view).</p>
+        <p>Write an announcement and publish it to your class feed.</p>
       </section>
+
+      {error && (
+        <section className="glass-panel" style={{ padding: '1rem', color: '#ef4444' }}>
+          Error: {error}
+          <button style={{ marginLeft: '1rem' }} onClick={() => setError(null)}>Dismiss</button>
+        </section>
+      )}
 
       <section className="broadcast-layout">
         <article className="glass-panel composer-panel">
@@ -85,9 +112,11 @@ const Teacher_Broadcast = () => {
               Audience
               <select name="audience" value={formData.audience} onChange={onFieldChange}>
                 <option value="All students">All students</option>
-                <option value="A1 Begginers">A1 Begginers</option>
-                <option value="B1 Intermidate">B1 Intermidate</option>
-                <option value="C1 Advanced">C1 Advanced</option>
+                {groups.map((group) => (
+                  <option key={group.id} value={`${group.level} ${group.title}`}>
+                    {group.level} {group.title}
+                  </option>
+                ))}
               </select>
             </label>
 

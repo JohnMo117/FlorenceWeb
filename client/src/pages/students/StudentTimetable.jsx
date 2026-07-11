@@ -1,23 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './StudentTimetable.css';
 
-const timetable = [
-  { day: 'Monday', slots: ['Reading', 'Listening', 'Break', 'Writing'] },
-  { day: 'Tuesday', slots: ['Grammar', 'Speaking', 'Break', 'Project work'] },
-  { day: 'Wednesday', slots: ['Reading', 'Listening', 'Break', 'Homework review'] },
-  { day: 'Thursday', slots: ['Writing', 'Speaking', 'Break', 'Practice test'] },
-  { day: 'Friday', slots: ['Quiz review', 'Listening', 'Break', 'Wrap-up'] },
-];
-
-const times = ['08:00 - 09:30', '10:00 - 11:30', '12:00 - 13:30', '14:00 - 15:30'];
+// TODO(security): Replace hardcoded studentId with JWT-derived identity.
+const CURRENT_STUDENT_ID = 'S1';
 
 const StudentTimetable = () => {
+  const [times, setTimes] = useState([]);
+  const [timetable, setTimetable] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/students/timetable?studentId=${CURRENT_STUDENT_ID}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load timetable');
+        return res.json();
+      })
+      .then((data) => {
+        setTimes(data.times);
+        setTimetable(data.timetable);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="section-dashboard"><p>Loading timetable...</p></div>;
+  if (error) return <div className="section-dashboard"><p style={{ color: '#ef4444' }}>Error: {error}</p></div>;
+
   return (
     <div className="section-dashboard">
       <section className="glass-panel section-hero">
         <span className="eyebrow">Timetable</span>
         <h1>My weekly schedule</h1>
-        <p>Mock timetable preview for the student portal.</p>
+        <p>Your personalized timetable based on enrolled classes.</p>
       </section>
 
       <section className="glass-panel table-panel">
@@ -34,8 +52,8 @@ const StudentTimetable = () => {
             {timetable.map((row) => (
               <tr key={row.day}>
                 <th scope="row">{row.day}</th>
-                {row.slots.map((slot) => (
-                  <td key={`${row.day}-${slot}`}>{slot}</td>
+                {row.slots.map((slot, index) => (
+                  <td key={`${row.day}-${index}`}>{slot}</td>
                 ))}
               </tr>
             ))}

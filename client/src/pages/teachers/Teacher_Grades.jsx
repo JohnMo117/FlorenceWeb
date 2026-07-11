@@ -1,66 +1,28 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import './Teacher_Grades.css';
 
-const initialGroups = [
-  {
-    id: 'grp-A1',
-    name: 'A1 Begginers',
-    period: 'Quarter 4',
-    students: 24,
-    focus: 'Introduction to English',
-    grades: [
-      { id: 'g-1', student: 'Ana Rivera', assessment: 'Unit 3 Quiz', score: 8.9, status: 'Published', updatedAt: 'Today' },
-      { id: 'g-2', student: 'Marco Silva', assessment: 'Project Draft', score: 7.4, status: 'Pending', updatedAt: 'Yesterday' },
-      { id: 'g-3', student: 'Lina Torres', assessment: 'Midterm Review', score: 9.2, status: 'Published', updatedAt: '2 days ago' },
-    ],
-  },
-  {
-    id: 'grp-B1',
-    name: 'B1 Intermidate',
-    period: 'Quarter 4',
-    students: 21,
-    focus: 'Intermediate English',
-    grades: [
-      { id: 'g-4', student: 'Diego Costa', assessment: 'Lab Report', score: 8.1, status: 'Published', updatedAt: 'Today' },
-      { id: 'g-5', student: 'Sara Gomez', assessment: 'Quiz 5', score: 6.8, status: 'Needs review', updatedAt: 'Yesterday' },
-      { id: 'g-6', student: 'Hugo Martín', assessment: 'Lab Report', score: 9, status: 'Published', updatedAt: '3 days ago' },
-    ],
-  },
-  {
-    id: 'grp-C1',
-    name: 'C1 Advanced',
-    period: 'Quarter 4',
-    students: 18,
-    focus: 'Essay writing',
-    grades: [
-      { id: 'g-7', student: 'Paula Ruiz', assessment: 'Essay 2', score: 9.4, status: 'Published', updatedAt: 'Today' },
-      { id: 'g-8', student: 'Nora Alvarez', assessment: 'Reading Response', score: 8.5, status: 'Pending', updatedAt: 'Yesterday' },
-      { id: 'g-9', student: 'Leo Blanco', assessment: 'Essay 2', score: 7.9, status: 'Published', updatedAt: '2 days ago' },
-    ],
-  },
-];
-
-const createGradeId = () => `g-${Date.now()}-${Math.random().toString(16).slice(2, 6)}`;
+// TODO(security): Replace hardcoded teacherId with JWT-derived identity.
+const CURRENT_TEACHER_ID = 'T1';
 
 const averageFor = (grades) => {
-  if (!grades.length) {
-    return 0;
-  }
-
+  if (!grades.length) return 0;
   const total = grades.reduce((sum, grade) => sum + Number(grade.score), 0);
   return total / grades.length;
 };
 
 const Teachers_Grades = () => {
-  const [groups, setGroups] = useState(initialGroups);
-  const [selectedGroupId, setSelectedGroupId] = useState(initialGroups[0].id);
+  const [groups, setGroups] = useState([]);
+  const [gradesByGroup, setGradesByGroup] = useState({});
+  const [selectedGroupId, setSelectedGroupId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [editingGradeId, setEditingGradeId] = useState(null);
   const [uploadForm, setUploadForm] = useState({
     student: '',
     assessment: '',
     score: '',
     status: 'Published',
-    evidenceName: '',
   });
   const [editForm, setEditForm] = useState({
     student: '',
@@ -69,85 +31,138 @@ const Teachers_Grades = () => {
     status: 'Published',
   });
 
-  const selectedGroup = groups.find((group) => group.id === selectedGroupId) ?? groups[0];
+  // Fetch teacher's groups
+  useEffect(() => {
+    fetch(`/api/teachers/groups?teacherId=${CURRENT_TEACHER_ID}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load groups');
+        return res.json();
+      })
+      .then((data) => {
+        setGroups(data);
+        if (data.length > 0) {
+          setSelectedGroupId(data[0].id);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  // Fetch grades when selected group changes
+  useEffect(() => {
+    if (!selectedGroupId) return;
+    // Skip if already fetched
+    if (gradesByGroup[selectedGroupId]) return;
+
+    fetch(`/api/teachers/grades/${selectedGroupId}?teacherId=${CURRENT_TEACHER_ID}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load grades');
+        return res.json();
+      })
+      .then((data) => {
+        setGradesByGroup((prev) => ({ ...prev, [selectedGroupId]: data }));
+      })
+      .catch((err) => {
+        setError(err.message);
+      });
+  }, [selectedGroupId, gradesByGroup]);
+
+  const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? groups[0];
+  const activeGrades = gradesByGroup[selectedGroupId] || [];
 
   const dashboardStats = useMemo(() => {
-    const allGrades = groups.flatMap((group) => group.grades);
-    const pendingGrades = allGrades.filter((grade) => grade.status !== 'Published');
+    const allGrades = Object.values(gradesByGroup).flat();
+    const pendingGrades = allGrades.filter((g) => g.status !== 'Published');
 
     return {
       groups: groups.length,
       average: averageFor(allGrades),
       pending: pendingGrades.length,
-      recent: allGrades.filter((grade) => grade.updatedAt === 'Today').length,
+      recent: allGrades.filter((g) => g.updatedAt === 'Today' || g.updatedAt === 'Just now').length,
     };
-  }, [groups]);
-
-  const updateGroup = (groupId, updater) => {
-    setGroups((currentGroups) => currentGroups.map((group) => (group.id === groupId ? updater(group) : group)));
-  };
+  }, [groups, gradesByGroup]);
 
   const beginEdit = (grade) => {
     setEditingGradeId(grade.id);
     setEditForm({
-      student: grade.student,
+      student: grade.studentName,
       assessment: grade.assessment,
       score: String(grade.score),
       status: grade.status,
     });
   };
 
-  const saveEdit = (groupId, gradeId) => {
-    updateGroup(groupId, (group) => ({
-      ...group,
-      grades: group.grades.map((grade) =>
-        grade.id === gradeId
-          ? {
-              ...grade,
-              student: editForm.student.trim(),
-              assessment: editForm.assessment.trim(),
-              score: Number(editForm.score),
-              status: editForm.status,
-              updatedAt: 'Just now',
-            }
-          : grade
-      ),
-    }));
+  const saveEdit = async (groupId, gradeId) => {
+    try {
+      const response = await fetch(`/api/teachers/grades/${gradeId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherId: CURRENT_TEACHER_ID,
+          studentName: editForm.student.trim(),
+          assessment: editForm.assessment.trim(),
+          score: Number(editForm.score),
+          status: editForm.status,
+        }),
+      });
 
-    setEditingGradeId(null);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update grade');
+      }
+
+      const updated = await response.json();
+      setGradesByGroup((prev) => ({
+        ...prev,
+        [groupId]: prev[groupId].map((g) => (g.id === gradeId ? updated : g)),
+      }));
+      setEditingGradeId(null);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const handleUploadSubmit = (event) => {
+  const handleUploadSubmit = async (event) => {
     event.preventDefault();
 
     if (!uploadForm.student.trim() || !uploadForm.assessment.trim() || uploadForm.score === '') {
       return;
     }
 
-    const newGrade = {
-      id: createGradeId(),
-      student: uploadForm.student.trim(),
-      assessment: uploadForm.assessment.trim(),
-      score: Number(uploadForm.score),
-      status: uploadForm.status,
-      updatedAt: 'Just now',
-    };
+    try {
+      const response = await fetch('/api/teachers/grades', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teacherId: CURRENT_TEACHER_ID,
+          groupId: selectedGroupId,
+          studentName: uploadForm.student.trim(),
+          assessment: uploadForm.assessment.trim(),
+          score: Number(uploadForm.score),
+          status: uploadForm.status,
+        }),
+      });
 
-    updateGroup(selectedGroupId, (group) => ({
-      ...group,
-      grades: [newGrade, ...group.grades],
-    }));
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload grade');
+      }
 
-    setUploadForm({
-      student: '',
-      assessment: '',
-      score: '',
-      status: 'Published',
-      evidenceName: '',
-    });
+      const newGrade = await response.json();
+      setGradesByGroup((prev) => ({
+        ...prev,
+        [selectedGroupId]: [newGrade, ...(prev[selectedGroupId] || [])],
+      }));
+      setUploadForm({ student: '', assessment: '', score: '', status: 'Published' });
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
-  const activeGrades = selectedGroup?.grades ?? [];
+  if (loading) return <div className="teacher-grades-dashboard page-container"><p>Loading...</p></div>;
 
   return (
     <div className="teacher-grades-dashboard page-container">
@@ -155,14 +170,16 @@ const Teachers_Grades = () => {
         <div>
           <span className="eyebrow">Teacher dashboard</span>
           <h1>Grades control center</h1>
-          <p>Upload new marks, edit existing records, and review each group with mock data.</p>
+          <p>Upload new marks, edit existing records, and review each group.</p>
         </div>
-{/* 
-        <div className="hero-actions">
-          <button className="btn btn-primary" type="button">Export report</button>
-          <button className="btn btn-outline" type="button">Send reminder</button>
-        </div> */}
       </section>
+
+      {error && (
+        <section className="glass-panel" style={{ padding: '1rem', color: '#ef4444' }}>
+          Error: {error}
+          <button style={{ marginLeft: '1rem' }} onClick={() => setError(null)}>Dismiss</button>
+        </section>
+      )}
 
       <section className="stats-grid">
         <article className="glass-panel stat-card">
@@ -173,7 +190,7 @@ const Teachers_Grades = () => {
         <article className="glass-panel stat-card">
           <span className="stat-label">Average grade</span>
           <strong>{dashboardStats.average.toFixed(1)}</strong>
-          <small>Across all mock records</small>
+          <small>Across all records</small>
         </article>
         <article className="glass-panel stat-card">
           <span className="stat-label">Pending review</span>
@@ -198,7 +215,8 @@ const Teachers_Grades = () => {
 
           <div className="group-list">
             {groups.map((group) => {
-              const average = averageFor(group.grades);
+              const groupGrades = gradesByGroup[group.id] || [];
+              const average = averageFor(groupGrades);
               const isActive = group.id === selectedGroupId;
 
               return (
@@ -209,11 +227,11 @@ const Teachers_Grades = () => {
                   onClick={() => setSelectedGroupId(group.id)}
                 >
                   <div>
-                    <h3>{group.name}</h3>
+                    <h3>{group.level} {group.title}</h3>
                     <p>{group.focus}</p>
                   </div>
                   <div className="group-meta">
-                    <span>{group.students} students</span>
+                    <span>{group.studentCount} students</span>
                     <strong>{average.toFixed(1)}</strong>
                   </div>
                 </button>
@@ -221,13 +239,15 @@ const Teachers_Grades = () => {
             })}
           </div>
 
-          <div className="group-summary">
-            <span className="eyebrow">Selected group</span>
-            <h3>{selectedGroup.name}</h3>
-            <p>
-              {selectedGroup.period} · {selectedGroup.focus}
-            </p>
-          </div>
+          {selectedGroup && (
+            <div className="group-summary">
+              <span className="eyebrow">Selected group</span>
+              <h3>{selectedGroup.level} {selectedGroup.title}</h3>
+              <p>
+                {selectedGroup.period} · {selectedGroup.focus}
+              </p>
+            </div>
+          )}
         </aside>
 
         <div className="main-column">
@@ -242,10 +262,10 @@ const Teachers_Grades = () => {
             <form className="upload-form" onSubmit={handleUploadSubmit}>
               <label>
                 Group
-                <select value={selectedGroupId} onChange={(event) => setSelectedGroupId(event.target.value)}>
+                <select value={selectedGroupId || ''} onChange={(e) => setSelectedGroupId(e.target.value)}>
                   {groups.map((group) => (
                     <option key={group.id} value={group.id}>
-                      {group.name}
+                      {group.level} {group.title}
                     </option>
                   ))}
                 </select>
@@ -255,7 +275,7 @@ const Teachers_Grades = () => {
                 <input
                   type="text"
                   value={uploadForm.student}
-                  onChange={(event) => setUploadForm((current) => ({ ...current, student: event.target.value }))}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, student: e.target.value }))}
                   placeholder="Enter student name"
                 />
               </label>
@@ -264,7 +284,7 @@ const Teachers_Grades = () => {
                 <input
                   type="text"
                   value={uploadForm.assessment}
-                  onChange={(event) => setUploadForm((current) => ({ ...current, assessment: event.target.value }))}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, assessment: e.target.value }))}
                   placeholder="Quiz, project, exam..."
                 />
               </label>
@@ -276,7 +296,7 @@ const Teachers_Grades = () => {
                   max="10"
                   step="0.1"
                   value={uploadForm.score}
-                  onChange={(event) => setUploadForm((current) => ({ ...current, score: event.target.value }))}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, score: e.target.value }))}
                   placeholder="0.0"
                 />
               </label>
@@ -284,16 +304,15 @@ const Teachers_Grades = () => {
                 Status
                 <select
                   value={uploadForm.status}
-                  onChange={(event) => setUploadForm((current) => ({ ...current, status: event.target.value }))}
+                  onChange={(e) => setUploadForm((c) => ({ ...c, status: e.target.value }))}
                 >
                   <option value="Published">Published</option>
                   <option value="Pending">Pending</option>
                   <option value="Needs review">Needs review</option>
                 </select>
               </label>
-              
+
               <div className="upload-footer">
-                
                 <button className="btn btn-primary" type="submit">Upload grade</button>
               </div>
             </form>
@@ -303,7 +322,7 @@ const Teachers_Grades = () => {
             <div className="panel-header">
               <div>
                 <span className="eyebrow">Grades</span>
-                <h2>{selectedGroup.name}</h2>
+                <h2>{selectedGroup ? `${selectedGroup.level} ${selectedGroup.title}` : 'Select a group'}</h2>
               </div>
             </div>
 
@@ -330,10 +349,10 @@ const Teachers_Grades = () => {
                             <input
                               type="text"
                               value={editForm.student}
-                              onChange={(event) => setEditForm((current) => ({ ...current, student: event.target.value }))}
+                              onChange={(e) => setEditForm((c) => ({ ...c, student: e.target.value }))}
                             />
                           ) : (
-                            grade.student
+                            grade.studentName
                           )}
                         </td>
                         <td>
@@ -341,7 +360,7 @@ const Teachers_Grades = () => {
                             <input
                               type="text"
                               value={editForm.assessment}
-                              onChange={(event) => setEditForm((current) => ({ ...current, assessment: event.target.value }))}
+                              onChange={(e) => setEditForm((c) => ({ ...c, assessment: e.target.value }))}
                             />
                           ) : (
                             grade.assessment
@@ -355,7 +374,7 @@ const Teachers_Grades = () => {
                               max="10"
                               step="0.1"
                               value={editForm.score}
-                              onChange={(event) => setEditForm((current) => ({ ...current, score: event.target.value }))}
+                              onChange={(e) => setEditForm((c) => ({ ...c, score: e.target.value }))}
                             />
                           ) : (
                             grade.score.toFixed(1)
@@ -365,7 +384,7 @@ const Teachers_Grades = () => {
                           {isEditing ? (
                             <select
                               value={editForm.status}
-                              onChange={(event) => setEditForm((current) => ({ ...current, status: event.target.value }))}
+                              onChange={(e) => setEditForm((c) => ({ ...c, status: e.target.value }))}
                             >
                               <option value="Published">Published</option>
                               <option value="Pending">Pending</option>

@@ -1,13 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './StudentClasses.css';
 
-const classes = [
-  { level: 'A2', name: 'Everyday English', room: 'Room 102', teacher: 'Marta Ruiz' },
-  { level: 'B1', name: 'Intermediate Skills', room: 'Room 203', teacher: 'Luis Gomez' },
-  { level: 'B2', name: 'Conversation Lab', room: 'Room 204', teacher: 'Ana Torres' },
-];
+// TODO(security): Replace hardcoded studentId with JWT-derived identity.
+const CURRENT_STUDENT_ID = 'S1';
 
 const StudentClasses = () => {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch(`/api/students/classes?studentId=${CURRENT_STUDENT_ID}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load classes');
+        return res.json();
+      })
+      .then((data) => {
+        setClasses(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="section-dashboard"><p>Loading classes...</p></div>;
+  if (error) return <div className="section-dashboard"><p style={{ color: '#ef4444' }}>Error: {error}</p></div>;
+
   return (
     <div className="section-dashboard">
       <section className="glass-panel section-hero">

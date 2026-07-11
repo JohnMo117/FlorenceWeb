@@ -1,31 +1,47 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import './AdminClasses.css';
 
-const classes = [
-  { level: 'A1', title: 'Beginners', students: 24, teacher: 'Marta Ruiz', room: 'Room 101' },
-  { level: 'B1', title: 'Intermediate', students: 21, teacher: 'Luis Gomez', room: 'Room 203' },
-  { level: 'C1', title: 'Advanced', students: 18, teacher: 'Ana Torres', room: 'Room 305' },
-  { level: 'A2', title: 'Elementary', students: 20, teacher: 'Sara Lopez', room: 'Room 102' },
-];
-
 const AdminClasses = () => {
+  const [classes, setClasses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/admin/classes')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load classes');
+        return res.json();
+      })
+      .then((data) => {
+        setClasses(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err.message);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading) return <div className="section-dashboard"><p>Loading classes...</p></div>;
+  if (error) return <div className="section-dashboard"><p style={{ color: '#ef4444' }}>Error: {error}</p></div>;
+
   return (
     <div className="section-dashboard">
       <section className="glass-panel section-hero">
         <span className="eyebrow">English levels</span>
         <h1>Class structure overview</h1>
-        <p>Mock view for reviewing A1 to C1 groups.</p>
+        <p>Review the A1 to C1 groups from the server.</p>
       </section>
 
       <section className="section-grid">
         {classes.map((item) => (
-          <article key={item.level} className="glass-panel section-card class-card">
+          <article key={item.id} className="glass-panel section-card class-card">
             <div className="card-topline">
               <div>
                 <span className="eyebrow">Level {item.level}</span>
                 <h2>{item.title}</h2>
               </div>
-              <strong>{item.students} students</strong>
+              <strong>{item.studentCount} students</strong>
             </div>
             <p>{item.teacher}</p>
             <p>{item.room}</p>
