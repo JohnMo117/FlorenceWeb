@@ -16,7 +16,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
+import pool, { query } from './server/db.js';
+
 // Route modules
+import authRoutes from './server/routes/authRoutes.js';
 import adminRoutes from './server/routes/adminRoutes.js';
 import teacherRoutes from './server/routes/teacherRoutes.js';
 import studentRoutes from './server/routes/studentRoutes.js';
@@ -26,6 +29,9 @@ const port = process.env.PORT || 3000;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Expose connection pool globally on app
+app.set('dbPool', pool);
 
 // ─── Security headers middleware ────────────────────────────────────────────
 app.use((_req, res, next) => {
@@ -74,7 +80,30 @@ app.get('/api/status', (_req, res) => {
   res.json({ status: 'API is running', timestamp: new Date().toISOString() });
 });
 
+// ─── Database health check endpoint ─────────────────────────────────────────
+app.get('/api/db-status', async (_req, res) => {
+  try {
+    const [rows] = await query('SELECT VERSION() AS version');
+    const [tables] = await query("SHOW TABLES");
+    res.json({
+      status: 'Connected to MySQL',
+      version: rows[0]?.version || 'Unknown',
+      database: process.env.DB_NAME || 'Escuela_Ingles',
+      tableCount: tables.length,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error.message);
+    res.status(503).json({
+      status: 'Database connection failed',
+      error: 'Unable to connect to MySQL database.',
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 // ─── Mount route modules ────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/students', studentRoutes);
@@ -96,10 +125,8 @@ if (process.env.NODE_ENV === 'production') {
 
 // ─── Centralized error handler ──────────────────────────────────────────────
 // Generic error response — never expose internal details to the client.
-// TODO(db): When mysql2 is connected, catch DB-specific errors here and log them securely.
 app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err.message);
-  // TODO(security): Log detailed error info to a secure logging service, never to the client.
   res.status(500).json({ error: 'An internal server error occurred.' });
 });
 

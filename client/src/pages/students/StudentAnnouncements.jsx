@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './StudentAnnouncements.css';
 
-// TODO(security): Replace hardcoded studentId with JWT-derived identity.
-const CURRENT_STUDENT_ID = 'S1';
-
 const StudentAnnouncements = () => {
+  const { user } = useAuth();
+  const studentId = user?.refId || 'S1';
+
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/students/announcements?studentId=${CURRENT_STUDENT_ID}`)
+    fetch(`/api/students/announcements?studentId=${encodeURIComponent(studentId)}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load announcements');
         return res.json();
@@ -23,7 +24,7 @@ const StudentAnnouncements = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [studentId]);
 
   if (loading) return <div className="section-dashboard"><p>Loading announcements...</p></div>;
   if (error) return <div className="section-dashboard"><p style={{ color: '#ef4444' }}>Error: {error}</p></div>;
@@ -33,7 +34,7 @@ const StudentAnnouncements = () => {
       <section className="glass-panel section-hero">
         <span className="eyebrow">Announcements</span>
         <h1>Teacher announcements</h1>
-        <p>Broadcasts from your teachers for your enrolled groups.</p>
+        <p>Broadcasts from your teachers for your enrolled groups {user ? `(${user.name})` : ''}.</p>
       </section>
 
       <section className="announcement-list">

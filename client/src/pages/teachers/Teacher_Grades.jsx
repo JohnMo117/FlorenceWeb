@@ -1,8 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './Teacher_Grades.css';
-
-// TODO(security): Replace hardcoded teacherId with JWT-derived identity.
-const CURRENT_TEACHER_ID = 'T1';
 
 const averageFor = (grades) => {
   if (!grades.length) return 0;
@@ -11,8 +9,12 @@ const averageFor = (grades) => {
 };
 
 const Teachers_Grades = () => {
+  const { user } = useAuth();
+  const teacherId = user?.refId || 'T1';
+
   const [groups, setGroups] = useState([]);
   const [gradesByGroup, setGradesByGroup] = useState({});
+  const [studentsByGroup, setStudentsByGroup] = useState({});
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -33,7 +35,7 @@ const Teachers_Grades = () => {
 
   // Fetch teacher's groups
   useEffect(() => {
-    fetch(`/api/teachers/groups?teacherId=${CURRENT_TEACHER_ID}`)
+    fetch(`/api/teachers/groups?teacherId=${encodeURIComponent(teacherId)}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load groups');
         return res.json();
@@ -57,7 +59,7 @@ const Teachers_Grades = () => {
     // Skip if already fetched
     if (gradesByGroup[selectedGroupId]) return;
 
-    fetch(`/api/teachers/grades/${selectedGroupId}?teacherId=${CURRENT_TEACHER_ID}`)
+    fetch(`/api/teachers/grades/${selectedGroupId}?teacherId=${encodeURIComponent(teacherId)}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load grades');
         return res.json();
@@ -68,10 +70,25 @@ const Teachers_Grades = () => {
       .catch((err) => {
         setError(err.message);
       });
-  }, [selectedGroupId, gradesByGroup]);
+
+    if (studentsByGroup[selectedGroupId]) return;
+
+    fetch(`/api/teachers/groups/${selectedGroupId}/students?teacherId=${encodeURIComponent(teacherId)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to load students');
+        return res.json();
+      })
+      .then((data) => {
+        setStudentsByGroup((prev) => ({ ...prev, [selectedGroupId]: data }));
+      })
+      .catch((err) => {
+        setError(err.message);
+      });
+  }, [selectedGroupId, gradesByGroup, studentsByGroup]);
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? groups[0];
   const activeGrades = gradesByGroup[selectedGroupId] || [];
+  const activeStudents = studentsByGroup[selectedGroupId] || [];
 
   const dashboardStats = useMemo(() => {
     const allGrades = Object.values(gradesByGroup).flat();
@@ -101,7 +118,7 @@ const Teachers_Grades = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teacherId: CURRENT_TEACHER_ID,
+          teacherId: teacherId,
           studentName: editForm.student.trim(),
           assessment: editForm.assessment.trim(),
           score: Number(editForm.score),
@@ -137,7 +154,7 @@ const Teachers_Grades = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teacherId: CURRENT_TEACHER_ID,
+          teacherId: teacherId,
           groupId: selectedGroupId,
           studentName: uploadForm.student.trim(),
           assessment: uploadForm.assessment.trim(),
@@ -272,12 +289,15 @@ const Teachers_Grades = () => {
               </label>
               <label>
                 Student
-                <input
-                  type="text"
+                <select
                   value={uploadForm.student}
                   onChange={(e) => setUploadForm((c) => ({ ...c, student: e.target.value }))}
-                  placeholder="Enter student name"
-                />
+                >
+                  <option value="" disabled>Select a student</option>
+                  {activeStudents.map((s) => (
+                    <option key={s.id} value={s.name}>{s.name}</option>
+                  ))}
+                </select>
               </label>
               <label>
                 Assessment
@@ -346,11 +366,15 @@ const Teachers_Grades = () => {
                       <tr key={grade.id}>
                         <td>
                           {isEditing ? (
-                            <input
-                              type="text"
+                            <select
                               value={editForm.student}
                               onChange={(e) => setEditForm((c) => ({ ...c, student: e.target.value }))}
-                            />
+                            >
+                              <option value="" disabled>Select a student</option>
+                              {activeStudents.map((s) => (
+                                <option key={s.id} value={s.name}>{s.name}</option>
+                              ))}
+                            </select>
                           ) : (
                             grade.studentName
                           )}
@@ -377,7 +401,7 @@ const Teachers_Grades = () => {
                               onChange={(e) => setEditForm((c) => ({ ...c, score: e.target.value }))}
                             />
                           ) : (
-                            grade.score.toFixed(1)
+                            Number(grade.score).toFixed(1)
                           )}
                         </td>
                         <td>

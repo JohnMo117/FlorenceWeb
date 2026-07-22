@@ -2,24 +2,11 @@
  * Teacher API routes
  * Mounted at /api/teachers
  *
- * TODO(security): Add JWT authentication middleware — only teacher-role tokens should access these routes.
- * TODO(security): Derive teacherId from the verified JWT token, not from query params.
- * TODO(security): Add rate limiting to prevent abuse.
+ * Uses parameterized MySQL queries via server/db.js.
  */
 
 import { Router } from 'express';
-import {
-  groups,
-  grades,
-  timetableSlots,
-  announcements,
-  teachers,
-  studentGroups,
-  generateId,
-  findById,
-  addItem,
-  updateItem,
-} from '../data/mockData.js';
+import { query, execute } from '../db.js';
 
 const router = Router();
 
@@ -33,22 +20,26 @@ function isValidString(value, maxLen = MAX_STRING_LENGTH) {
   return typeof value === 'string' && value.trim().length > 0 && value.length <= maxLen;
 }
 
+function generateId(prefix = '') {
+  return `${prefix}${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+}
+
 /**
- * Validate that teacherId exists. Returns the teacher or sends a 400 response.
- * TODO(security): Replace with JWT-derived identity.
+ * Validate that teacherId exists in database.
  */
-function resolveTeacher(req, res) {
+async function resolveTeacher(req, res) {
   const teacherId = req.query.teacherId;
   if (!teacherId || typeof teacherId !== 'string') {
     res.status(400).json({ error: 'teacherId query parameter is required.' });
     return null;
   }
-  const teacher = findById(teachers, teacherId);
-  if (!teacher) {
+
+  const [rows] = await query('SELECT id, name, email FROM teachers WHERE id = ?', [teacherId]);
+  if (rows.length === 0) {
     res.status(404).json({ error: 'Teacher not found.' });
     return null;
   }
-  return teacher;
+  return rows[0];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -57,15 +48,58 @@ function resolveTeacher(req, res) {
 
 /**
  * GET /api/teachers/groups?teacherId=T1
- * List groups assigned to the given teacher.
- * TODO(db): SELECT * FROM groups WHERE teacher_id = ?
+ * List groups assigned to the given teacher from MySQL.
  */
-router.get('/groups', (req, res) => {
-  const teacher = resolveTeacher(req, res);
-  if (!teacher) return; // response already sent
+router.get('/groups', async (req, res, next) => {
+  try {
+    const teacher = await resolveTeacher(req, res);
+    if (!teacher) return;
 
-  const teacherGroups = groups.filter((g) => g.teacherId === teacher.id);
-  res.json(teacherGroups);
+    const [groups] = await query(
+      `SELECT id, level, title, room, teacher_id AS teacherId, student_count AS studentCount, period, focus
+       FROM \`groups\`
+       WHERE teacher_id = ?`,
+      [teacher.id]
+    );
+
+    res.json(groups);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/teachers/groups/:groupId/students?teacherId=T1
+ * Get all students enrolled in a specific group.
+ */
+router.get('/groups/:groupId/students', async (req, res, next) => {
+  try {
+    const teacher = await resolveTeacher(req, res);
+    if (!teacher) return;
+
+    const { groupId } = req.params;
+    const [grp] = await query('SELECT teacher_id FROM `groups` WHERE id = ?', [groupId]);
+    
+    if (grp.length === 0) {
+      return res.status(404).json({ error: 'Group not found.' });
+    }
+    if (grp[0].teacher_id !== teacher.id) {
+      return res.status(403).json({ error: 'You are not assigned to this group.' });
+    }
+
+    const [students] = await query(
+      `SELECT s.id, s.name, s.email, s.english_level AS englishLevel
+       FROM students s
+       JOIN student_groups sg ON s.id = sg.student_id
+       WHERE sg.group_id = ?
+       ORDER BY s.name ASC`,
+      [groupId]
+    );
+
+    res.json(students);
+  } catch (error) {
+    next(error);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -74,135 +108,167 @@ router.get('/groups', (req, res) => {
 
 /**
  * GET /api/teachers/grades/:groupId?teacherId=T1
- * Get all grades for a specific group (only if teacher owns the group).
- * TODO(db): SELECT g.* FROM grades g JOIN groups gr ON g.group_id = gr.id WHERE gr.teacher_id = ? AND g.group_id = ?
+ * Get all grades for a specific group from MySQL.
  */
-router.get('/grades/:groupId', (req, res) => {
-  const teacher = resolveTeacher(req, res);
-  if (!teacher) return;
+router.get('/grades/:groupId', async (req, res, next) => {
+  try {
+    const teacher = await resolveTeacher(req, res);
+    if (!teacher) return;
 
-  const { groupId } = req.params;
-  const group = findById(groups, groupId);
+    const { groupId } = req.params;
+    const [grp] = await query('SELECT teacher_id FROM `groups` WHERE id = ?', [groupId]);
 
-  if (!group) {
-    return res.status(404).json({ error: 'Group not found.' });
+    if (grp.length === 0) {
+      return res.status(404).json({ error: 'Group not found.' });
+    }
+    if (grp[0].teacher_id !== teacher.id) {
+      return res.status(403).json({ error: 'You are not assigned to this group.' });
+    }
+
+    const [groupGrades] = await query(
+      `SELECT id, student_id AS studentId, student_name AS studentName, group_id AS groupId, 
+              assessment, score, status, updated_at AS updatedAt, note
+       FROM grades
+       WHERE group_id = ?`,
+      [groupId]
+    );
+
+    res.json(groupGrades);
+  } catch (error) {
+    next(error);
   }
-  // Only allow teacher to see their own groups
-  if (group.teacherId !== teacher.id) {
-    return res.status(403).json({ error: 'You are not assigned to this group.' });
-  }
-
-  const groupGrades = grades.filter((g) => g.groupId === groupId);
-  res.json(groupGrades);
 });
 
 /**
  * POST /api/teachers/grades
- * Submit a new grade record.
- * Body: { teacherId, groupId, studentName, assessment, score, status }
- * TODO(db): INSERT INTO grades (student_id, student_name, group_id, assessment, score, status, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW())
+ * Submit a new grade record to MySQL.
  */
-router.post('/grades', (req, res) => {
-  const { teacherId, groupId, studentName, assessment, score, status } = req.body;
+router.post('/grades', async (req, res, next) => {
+  try {
+    const { teacherId, groupId, studentName, assessment, score, status } = req.body;
 
-  // Validate teacherId
-  if (!teacherId || !findById(teachers, teacherId)) {
-    return res.status(400).json({ error: 'Valid teacherId is required.' });
-  }
+    if (!teacherId || typeof teacherId !== 'string') {
+      return res.status(400).json({ error: 'Valid teacherId is required.' });
+    }
 
-  // Validate groupId and teacher ownership
-  const group = findById(groups, groupId);
-  if (!group) {
-    return res.status(404).json({ error: 'Group not found.' });
-  }
-  if (group.teacherId !== teacherId) {
-    return res.status(403).json({ error: 'You are not assigned to this group.' });
-  }
+    const [t] = await query('SELECT id FROM teachers WHERE id = ?', [teacherId]);
+    if (t.length === 0) {
+      return res.status(400).json({ error: 'Valid teacherId is required.' });
+    }
 
-  // Validate fields
-  if (!isValidString(studentName)) {
-    return res.status(400).json({ error: 'Student name is required (max 200 chars).' });
-  }
-  if (!isValidString(assessment)) {
-    return res.status(400).json({ error: 'Assessment name is required (max 200 chars).' });
-  }
+    const [grp] = await query('SELECT teacher_id FROM `groups` WHERE id = ?', [groupId]);
+    if (grp.length === 0) {
+      return res.status(404).json({ error: 'Group not found.' });
+    }
+    if (grp[0].teacher_id !== teacherId) {
+      return res.status(403).json({ error: 'You are not assigned to this group.' });
+    }
 
-  const numericScore = Number(score);
-  if (isNaN(numericScore) || numericScore < 0 || numericScore > 10) {
-    return res.status(400).json({ error: 'Score must be a number between 0 and 10.' });
+    if (!isValidString(studentName)) {
+      return res.status(400).json({ error: 'Student name is required (max 200 chars).' });
+    }
+    if (!isValidString(assessment)) {
+      return res.status(400).json({ error: 'Assessment name is required (max 200 chars).' });
+    }
+
+    const numericScore = Number(score);
+    if (isNaN(numericScore) || numericScore < 0 || numericScore > 10) {
+      return res.status(400).json({ error: 'Score must be a number between 0 and 10.' });
+    }
+
+    if (!VALID_GRADE_STATUSES.includes(status)) {
+      return res.status(400).json({ error: `Status must be one of: ${VALID_GRADE_STATUSES.join(', ')}` });
+    }
+
+    // Try resolving student_id by matching name
+    const [st] = await query('SELECT id FROM students WHERE name = ? LIMIT 1', [studentName.trim()]);
+    const studentId = st.length > 0 ? st[0].id : null;
+
+    const id = generateId('g-');
+    const trimmedName = studentName.trim();
+    const trimmedAssessment = assessment.trim();
+
+    await execute(
+      `INSERT INTO grades (id, student_id, student_name, group_id, assessment, score, status, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [id, studentId, trimmedName, groupId, trimmedAssessment, numericScore, status]
+    );
+
+    res.status(201).json({
+      id,
+      studentId,
+      studentName: trimmedName,
+      groupId,
+      assessment: trimmedAssessment,
+      score: numericScore,
+      status,
+      updatedAt: 'Just now',
+    });
+  } catch (error) {
+    next(error);
   }
-
-  if (!VALID_GRADE_STATUSES.includes(status)) {
-    return res.status(400).json({ error: `Status must be one of: ${VALID_GRADE_STATUSES.join(', ')}` });
-  }
-
-  // Try to resolve studentId from studentName (best effort for mock)
-  // TODO(db): Use a proper student ID from the frontend select, not a name lookup
-  const newGrade = {
-    id: generateId('g-'),
-    studentId: null, // TODO(db): resolve from student table
-    studentName: studentName.trim(),
-    groupId,
-    assessment: assessment.trim(),
-    score: numericScore,
-    status,
-    updatedAt: 'Just now',
-  };
-
-  addItem(grades, newGrade);
-  res.status(201).json(newGrade);
 });
 
 /**
  * PUT /api/teachers/grades/:id
- * Edit an existing grade record.
- * TODO(db): UPDATE grades SET student_name = ?, assessment = ?, score = ?, status = ?, updated_at = NOW() WHERE id = ? AND group_id IN (SELECT id FROM groups WHERE teacher_id = ?)
+ * Edit an existing grade record in MySQL.
  */
-router.put('/grades/:id', (req, res) => {
-  const { id } = req.params;
-  const existing = findById(grades, id);
-  if (!existing) {
-    return res.status(404).json({ error: 'Grade not found.' });
-  }
+router.put('/grades/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const [existing] = await query('SELECT * FROM grades WHERE id = ?', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Grade not found.' });
+    }
 
-  // Verify teacher ownership
-  const { teacherId } = req.body;
-  if (!teacherId) {
-    return res.status(400).json({ error: 'teacherId is required.' });
-  }
-  const group = findById(groups, existing.groupId);
-  if (!group || group.teacherId !== teacherId) {
-    return res.status(403).json({ error: 'You are not assigned to this group.' });
-  }
+    const current = existing[0];
+    const { teacherId, studentName, assessment, score, status } = req.body;
 
-  const updates = {};
-  const { studentName, assessment, score, status } = req.body;
+    if (!teacherId) {
+      return res.status(400).json({ error: 'teacherId is required.' });
+    }
 
-  if (studentName !== undefined) {
-    if (!isValidString(studentName)) return res.status(400).json({ error: 'Student name must be a non-empty string.' });
-    updates.studentName = studentName.trim();
-  }
-  if (assessment !== undefined) {
-    if (!isValidString(assessment)) return res.status(400).json({ error: 'Assessment must be a non-empty string.' });
-    updates.assessment = assessment.trim();
-  }
-  if (score !== undefined) {
-    const numericScore = Number(score);
-    if (isNaN(numericScore) || numericScore < 0 || numericScore > 10) {
+    const [grp] = await query('SELECT teacher_id FROM `groups` WHERE id = ?', [current.group_id]);
+    if (grp.length === 0 || grp[0].teacher_id !== teacherId) {
+      return res.status(403).json({ error: 'You are not assigned to this group.' });
+    }
+
+    const newName = studentName !== undefined ? studentName.trim() : current.student_name;
+    const newAssessment = assessment !== undefined ? assessment.trim() : current.assessment;
+    const newScore = score !== undefined ? Number(score) : current.score;
+    const newStatus = status !== undefined ? status : current.status;
+
+    if (studentName !== undefined && !isValidString(studentName)) {
+      return res.status(400).json({ error: 'Student name must be a non-empty string.' });
+    }
+    if (assessment !== undefined && !isValidString(assessment)) {
+      return res.status(400).json({ error: 'Assessment must be a non-empty string.' });
+    }
+    if (score !== undefined && (isNaN(newScore) || newScore < 0 || newScore > 10)) {
       return res.status(400).json({ error: 'Score must be between 0 and 10.' });
     }
-    updates.score = numericScore;
-  }
-  if (status !== undefined) {
-    if (!VALID_GRADE_STATUSES.includes(status)) {
+    if (status !== undefined && !VALID_GRADE_STATUSES.includes(status)) {
       return res.status(400).json({ error: `Status must be one of: ${VALID_GRADE_STATUSES.join(', ')}` });
     }
-    updates.status = status;
-  }
 
-  updates.updatedAt = 'Just now';
-  const updated = updateItem(grades, id, updates);
-  res.json(updated);
+    await execute(
+      `UPDATE grades SET student_name = ?, assessment = ?, score = ?, status = ?, updated_at = NOW() WHERE id = ?`,
+      [newName, newAssessment, newScore, newStatus, id]
+    );
+
+    res.json({
+      id,
+      studentId: current.student_id,
+      studentName: newName,
+      groupId: current.group_id,
+      assessment: newAssessment,
+      score: newScore,
+      status: newStatus,
+      updatedAt: 'Just now',
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -211,39 +277,48 @@ router.put('/grades/:id', (req, res) => {
 
 /**
  * GET /api/teachers/timetable?teacherId=T1
- * Get the teacher's own timetable (slots for their groups).
- * TODO(db): SELECT ts.* FROM timetable_slots ts JOIN groups g ON ts.group_id = g.id WHERE g.teacher_id = ?
- *           UNION SELECT ts.* FROM timetable_slots ts WHERE ts.group_id IS NULL
+ * Get the teacher's own aggregated timetable from MySQL.
  */
-router.get('/timetable', (req, res) => {
-  const teacher = resolveTeacher(req, res);
-  if (!teacher) return;
+router.get('/timetable', async (req, res, next) => {
+  try {
+    const teacher = await resolveTeacher(req, res);
+    if (!teacher) return;
 
-  // Get groups this teacher owns
-  const teacherGroupIds = groups
-    .filter((g) => g.teacherId === teacher.id)
-    .map((g) => g.id);
+    const [teacherGroups] = await query('SELECT id FROM `groups` WHERE teacher_id = ?', [teacher.id]);
+    const groupIds = teacherGroups.map((g) => g.id);
 
-  // Build timetable: include slots for teacher's groups + non-group slots (planning, office hour, etc.)
-  const grid = VALID_DAYS.map((day) => {
-    const daySlots = VALID_TIME_SLOTS.map((timeSlot) => {
-      const slot = timetableSlots.find(
-        (s) => s.day === day && s.timeSlot === timeSlot
-      );
-      if (!slot) {
-        return { timeSlot, activity: '-', room: null };
-      }
-      // Show the slot if it belongs to teacher's group or is a general activity
-      if (slot.groupId === null || teacherGroupIds.includes(slot.groupId)) {
-        return { timeSlot, activity: slot.activity, room: slot.room };
-      }
-      // Slot belongs to another teacher's group — show as free
-      return { timeSlot, activity: '-', room: null };
+    if (groupIds.length === 0) {
+      const emptyGrid = VALID_DAYS.map((day) => ({
+        day,
+        slots: VALID_TIME_SLOTS.map((timeSlot) => ({ timeSlot, activity: '-', room: null })),
+      }));
+      return res.json({ times: VALID_TIME_SLOTS, timetable: emptyGrid });
+    }
+
+    const [slots] = await query(
+      `SELECT ts.day, ts.time_slot AS timeSlot, ts.room, ts.activity 
+       FROM timetable_slots ts
+       WHERE ts.group_id IN (?) AND ts.activity IS NOT NULL AND ts.activity != ''`,
+      [groupIds]
+    );
+
+    const grid = VALID_DAYS.map((day) => {
+      const daySlots = VALID_TIME_SLOTS.map((timeSlot) => {
+        const matches = slots.filter((s) => s.day === day && s.timeSlot === timeSlot);
+        if (matches.length === 0) {
+          return { timeSlot, activity: '-', room: null };
+        }
+        const activity = matches.map((m) => m.activity).join(' / ');
+        const room = matches.map((m) => m.room).filter(Boolean).join(', ') || null;
+        return { timeSlot, activity, room };
+      });
+      return { day, slots: daySlots };
     });
-    return { day, slots: daySlots };
-  });
 
-  res.json({ times: VALID_TIME_SLOTS, timetable: grid });
+    res.json({ times: VALID_TIME_SLOTS, timetable: grid });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -252,62 +327,84 @@ router.get('/timetable', (req, res) => {
 
 /**
  * GET /api/teachers/announcements?teacherId=T1
- * List announcements posted by this teacher.
- * TODO(db): SELECT * FROM announcements WHERE teacher_id = ? ORDER BY created_at DESC
+ * List announcements posted by this teacher from MySQL.
  */
-router.get('/announcements', (req, res) => {
-  const teacher = resolveTeacher(req, res);
-  if (!teacher) return;
+router.get('/announcements', async (req, res, next) => {
+  try {
+    const teacher = await resolveTeacher(req, res);
+    if (!teacher) return;
 
-  const teacherAnnouncements = announcements.filter((a) => a.teacherId === teacher.id);
-  res.json(teacherAnnouncements);
+    const [announcements] = await query(
+      `SELECT id, teacher_id AS teacherId, title, audience, message, created_at AS createdAt
+       FROM announcements
+       WHERE teacher_id = ?
+       ORDER BY created_at DESC`,
+      [teacher.id]
+    );
+
+    res.json(announcements);
+  } catch (error) {
+    next(error);
+  }
 });
 
 /**
  * POST /api/teachers/announcements
- * Create a new broadcast announcement.
- * Body: { teacherId, title, audience, message }
- * TODO(db): INSERT INTO announcements (teacher_id, title, audience, message, created_at) VALUES (?, ?, ?, ?, NOW())
+ * Create a new broadcast announcement in MySQL.
  */
-router.post('/announcements', (req, res) => {
-  const { teacherId, title, audience, message } = req.body;
+router.post('/announcements', async (req, res, next) => {
+  try {
+    const { teacherId, title, audience, message } = req.body;
 
-  // Validate teacher
-  if (!teacherId || !findById(teachers, teacherId)) {
-    return res.status(400).json({ error: 'Valid teacherId is required.' });
+    if (!teacherId || typeof teacherId !== 'string') {
+      return res.status(400).json({ error: 'Valid teacherId is required.' });
+    }
+
+    const [t] = await query('SELECT id FROM teachers WHERE id = ?', [teacherId]);
+    if (t.length === 0) {
+      return res.status(400).json({ error: 'Valid teacherId is required.' });
+    }
+
+    if (!isValidString(title)) {
+      return res.status(400).json({ error: 'Title is required (max 200 chars).' });
+    }
+    if (!isValidString(audience)) {
+      return res.status(400).json({ error: 'Audience is required (max 200 chars).' });
+    }
+    if (!isValidString(message, 2000)) {
+      return res.status(400).json({ error: 'Message is required (max 200 chars).' });
+    }
+
+    const now = new Date();
+    const createdAt = now.toLocaleString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      day: '2-digit',
+      month: 'short',
+    });
+
+    const id = generateId('ann-');
+    const trimmedTitle = title.trim();
+    const trimmedAudience = audience.trim();
+    const trimmedMessage = message.trim();
+
+    await execute(
+      `INSERT INTO announcements (id, teacher_id, title, audience, message, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, teacherId, trimmedTitle, trimmedAudience, trimmedMessage, createdAt]
+    );
+
+    res.status(201).json({
+      id,
+      teacherId,
+      title: trimmedTitle,
+      audience: trimmedAudience,
+      message: trimmedMessage,
+      createdAt,
+    });
+  } catch (error) {
+    next(error);
   }
-
-  // Validate fields
-  if (!isValidString(title)) {
-    return res.status(400).json({ error: 'Title is required (max 200 chars).' });
-  }
-  if (!isValidString(audience)) {
-    return res.status(400).json({ error: 'Audience is required (max 200 chars).' });
-  }
-  if (!isValidString(message, 2000)) {
-    return res.status(400).json({ error: 'Message is required (max 2000 chars).' });
-  }
-
-  const now = new Date();
-  const createdAt = now.toLocaleString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    day: '2-digit',
-    month: 'short',
-  });
-
-  const newAnnouncement = {
-    id: generateId('ann-'),
-    teacherId,
-    title: title.trim(),
-    audience: audience.trim(),
-    message: message.trim(),
-    createdAt,
-  };
-
-  // Add to beginning of array (newest first)
-  announcements.unshift(newAnnouncement);
-  res.status(201).json(newAnnouncement);
 });
 
 export default router;

@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './StudentTimetable.css';
 
-// TODO(security): Replace hardcoded studentId with JWT-derived identity.
-const CURRENT_STUDENT_ID = 'S1';
-
 const StudentTimetable = () => {
+  const { user } = useAuth();
+  const studentId = user?.refId || 'S1';
+
   const [times, setTimes] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/students/timetable?studentId=${CURRENT_STUDENT_ID}`)
+    fetch(`/api/students/timetable?studentId=${encodeURIComponent(studentId)}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load timetable');
         return res.json();
@@ -25,7 +26,7 @@ const StudentTimetable = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [studentId]);
 
   if (loading) return <div className="section-dashboard"><p>Loading timetable...</p></div>;
   if (error) return <div className="section-dashboard"><p style={{ color: '#ef4444' }}>Error: {error}</p></div>;
@@ -35,7 +36,7 @@ const StudentTimetable = () => {
       <section className="glass-panel section-hero">
         <span className="eyebrow">Timetable</span>
         <h1>My weekly schedule</h1>
-        <p>Your personalized timetable based on enrolled classes.</p>
+        <p>Your personalized timetable based on enrolled classes {user ? `(${user.name})` : ''}.</p>
       </section>
 
       <section className="glass-panel table-panel">

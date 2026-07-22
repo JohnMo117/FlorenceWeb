@@ -19,27 +19,28 @@ app.set('views', path.join(__dirname, 'views'));
 const dbConfig = {
   host: 'localhost', // Replace with your host
   user: 'root',       // Replace with your username
-  password: '',   // Replace with your password
-  database: 'wordslist'
+  password: 'admin12345',   // Replace with your password
+  database: 'Escuela_Ingles'
 };
 
-// Route to render the index page and fetch a random word
+// Route to render the index page and fetch the MySQL version
 app.get('/', async (req, res) => {
-  let randomWord = null;
+  let mysqlVersion = null;
   try {
     const connection = await mysql.createConnection(dbConfig);
-    const [rows] = await connection.execute('SELECT word FROM words ORDER BY RAND() LIMIT 1');
+    const [rows] = await connection.execute('SELECT VERSION()');
     if (rows.length > 0) {
-      randomWord = rows[0].word;
+      mysqlVersion = rows[0]['VERSION()'];
+      console.log(`MySQL Version: ${mysqlVersion}`);
     }
     await connection.close();
   } catch (error) {
     console.error('Database query failed', error);
     // Handle the error appropriately, maybe send an error message to the client
-    randomWord = 'Error fetching word';
+    mysqlVersion = 'Error fetching MySQL version';
   }
 
-  res.render('index', { randomWord: randomWord });
+  res.render('index', { mysqlVersion: mysqlVersion });
 });
 
 app.get('/test', (req, res) => {

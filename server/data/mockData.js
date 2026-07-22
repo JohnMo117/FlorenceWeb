@@ -79,35 +79,98 @@ export const studentGroups = [
 ];
 
 // ---------------------------------------------------------------------------
-// Timetable slots (shared view — admin can edit, teacher/student read-only)
+// Timetable slots (per-group — each group has its own 5×4 grid)
 // ---------------------------------------------------------------------------
-// TODO(db): CREATE TABLE timetable_slots (id, day, time_slot, group_id, room, activity)
+// TODO(db): CREATE TABLE timetable_slots (id, group_id, day, time_slot, room, activity)
+//           Each group has independent slots; parallel classes across groups are allowed.
 export const timetableSlots = [
-  // Monday
-  { id: 'ts-1', day: 'Monday', timeSlot: '08:00 - 09:30', groupId: 'grp-A1', room: 'Room 101', activity: 'A1 - Room 101' },
-  { id: 'ts-2', day: 'Monday', timeSlot: '10:00 - 11:30', groupId: 'grp-B1', room: 'Room 203', activity: 'B1 - Room 203' },
-  { id: 'ts-3', day: 'Monday', timeSlot: '12:00 - 13:30', groupId: 'grp-C1', room: 'Room 305', activity: 'C1 - Room 305' },
-  { id: 'ts-4', day: 'Monday', timeSlot: '14:00 - 15:30', groupId: null, room: null, activity: 'Support block' },
-  // Tuesday
-  { id: 'ts-5', day: 'Tuesday', timeSlot: '08:00 - 09:30', groupId: 'grp-A2', room: 'Room 102', activity: 'A2 - Room 102' },
-  { id: 'ts-6', day: 'Tuesday', timeSlot: '10:00 - 11:30', groupId: 'grp-B1', room: 'Room 204', activity: 'B2 - Room 204' },
-  { id: 'ts-7', day: 'Tuesday', timeSlot: '12:00 - 13:30', groupId: 'grp-C1', room: 'Room 305', activity: 'C1 - Room 305' },
-  { id: 'ts-8', day: 'Tuesday', timeSlot: '14:00 - 15:30', groupId: null, room: null, activity: 'Registration block' },
-  // Wednesday
-  { id: 'ts-9', day: 'Wednesday', timeSlot: '08:00 - 09:30', groupId: 'grp-A1', room: 'Room 101', activity: 'A1 - Room 101' },
-  { id: 'ts-10', day: 'Wednesday', timeSlot: '10:00 - 11:30', groupId: 'grp-B1', room: 'Room 203', activity: 'B1 - Room 203' },
-  { id: 'ts-11', day: 'Wednesday', timeSlot: '12:00 - 13:30', groupId: 'grp-B1', room: 'Room 204', activity: 'B2 - Room 204' },
-  { id: 'ts-12', day: 'Wednesday', timeSlot: '14:00 - 15:30', groupId: null, room: null, activity: 'Assessment review' },
-  // Thursday
-  { id: 'ts-13', day: 'Thursday', timeSlot: '08:00 - 09:30', groupId: 'grp-A2', room: 'Room 102', activity: 'A2 - Room 102' },
-  { id: 'ts-14', day: 'Thursday', timeSlot: '10:00 - 11:30', groupId: 'grp-B1', room: 'Room 203', activity: 'B1 - Room 203' },
-  { id: 'ts-15', day: 'Thursday', timeSlot: '12:00 - 13:30', groupId: 'grp-C1', room: 'Room 305', activity: 'C1 - Room 305' },
-  { id: 'ts-16', day: 'Thursday', timeSlot: '14:00 - 15:30', groupId: null, room: null, activity: 'Teacher planning' },
-  // Friday
-  { id: 'ts-17', day: 'Friday', timeSlot: '08:00 - 09:30', groupId: 'grp-A1', room: 'Room 101', activity: 'A1 - Room 101' },
-  { id: 'ts-18', day: 'Friday', timeSlot: '10:00 - 11:30', groupId: 'grp-A2', room: 'Room 102', activity: 'A2 - Room 102' },
-  { id: 'ts-19', day: 'Friday', timeSlot: '12:00 - 13:30', groupId: 'grp-B1', room: 'Room 204', activity: 'B2 - Room 204' },
-  { id: 'ts-20', day: 'Friday', timeSlot: '14:00 - 15:30', groupId: null, room: null, activity: 'Open office hour' },
+  // ── grp-A1 (Beginners — Room 101, Teacher: Marta Ruiz) ──────────────────
+  { id: 'ts-a1-mon-1', groupId: 'grp-A1', day: 'Monday',    timeSlot: '08:00 - 09:30', room: 'Room 101', activity: 'Grammar fundamentals' },
+  { id: 'ts-a1-mon-2', groupId: 'grp-A1', day: 'Monday',    timeSlot: '10:00 - 11:30', room: 'Room 101', activity: 'Vocabulary building' },
+  { id: 'ts-a1-mon-3', groupId: 'grp-A1', day: 'Monday',    timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a1-mon-4', groupId: 'grp-A1', day: 'Monday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a1-tue-1', groupId: 'grp-A1', day: 'Tuesday',   timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-a1-tue-2', groupId: 'grp-A1', day: 'Tuesday',   timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-a1-tue-3', groupId: 'grp-A1', day: 'Tuesday',   timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a1-tue-4', groupId: 'grp-A1', day: 'Tuesday',   timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a1-wed-1', groupId: 'grp-A1', day: 'Wednesday', timeSlot: '08:00 - 09:30', room: 'Room 101', activity: 'Reading comprehension' },
+  { id: 'ts-a1-wed-2', groupId: 'grp-A1', day: 'Wednesday', timeSlot: '10:00 - 11:30', room: 'Room 101', activity: 'Listening practice' },
+  { id: 'ts-a1-wed-3', groupId: 'grp-A1', day: 'Wednesday', timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a1-wed-4', groupId: 'grp-A1', day: 'Wednesday', timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a1-thu-1', groupId: 'grp-A1', day: 'Thursday',  timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-a1-thu-2', groupId: 'grp-A1', day: 'Thursday',  timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-a1-thu-3', groupId: 'grp-A1', day: 'Thursday',  timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a1-thu-4', groupId: 'grp-A1', day: 'Thursday',  timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a1-fri-1', groupId: 'grp-A1', day: 'Friday',    timeSlot: '08:00 - 09:30', room: 'Room 101', activity: 'Speaking drills' },
+  { id: 'ts-a1-fri-2', groupId: 'grp-A1', day: 'Friday',    timeSlot: '10:00 - 11:30', room: 'Room 101', activity: 'Week review' },
+  { id: 'ts-a1-fri-3', groupId: 'grp-A1', day: 'Friday',    timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a1-fri-4', groupId: 'grp-A1', day: 'Friday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+
+  // ── grp-A2 (Elementary — Room 102, Teacher: Sara Lopez) ─────────────────
+  { id: 'ts-a2-mon-1', groupId: 'grp-A2', day: 'Monday',    timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-a2-mon-2', groupId: 'grp-A2', day: 'Monday',    timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-a2-mon-3', groupId: 'grp-A2', day: 'Monday',    timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a2-mon-4', groupId: 'grp-A2', day: 'Monday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a2-tue-1', groupId: 'grp-A2', day: 'Tuesday',   timeSlot: '08:00 - 09:30', room: 'Room 102', activity: 'Everyday phrases' },
+  { id: 'ts-a2-tue-2', groupId: 'grp-A2', day: 'Tuesday',   timeSlot: '10:00 - 11:30', room: 'Room 102', activity: 'Dialogue practice' },
+  { id: 'ts-a2-tue-3', groupId: 'grp-A2', day: 'Tuesday',   timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a2-tue-4', groupId: 'grp-A2', day: 'Tuesday',   timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a2-wed-1', groupId: 'grp-A2', day: 'Wednesday', timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-a2-wed-2', groupId: 'grp-A2', day: 'Wednesday', timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-a2-wed-3', groupId: 'grp-A2', day: 'Wednesday', timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a2-wed-4', groupId: 'grp-A2', day: 'Wednesday', timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a2-thu-1', groupId: 'grp-A2', day: 'Thursday',  timeSlot: '08:00 - 09:30', room: 'Room 102', activity: 'Writing basics' },
+  { id: 'ts-a2-thu-2', groupId: 'grp-A2', day: 'Thursday',  timeSlot: '10:00 - 11:30', room: 'Room 102', activity: 'Pronunciation lab' },
+  { id: 'ts-a2-thu-3', groupId: 'grp-A2', day: 'Thursday',  timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a2-thu-4', groupId: 'grp-A2', day: 'Thursday',  timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-a2-fri-1', groupId: 'grp-A2', day: 'Friday',    timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-a2-fri-2', groupId: 'grp-A2', day: 'Friday',    timeSlot: '10:00 - 11:30', room: 'Room 102', activity: 'Culture & context' },
+  { id: 'ts-a2-fri-3', groupId: 'grp-A2', day: 'Friday',    timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-a2-fri-4', groupId: 'grp-A2', day: 'Friday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+
+  // ── grp-B1 (Intermediate — Room 203, Teacher: Luis Gomez) ───────────────
+  { id: 'ts-b1-mon-1', groupId: 'grp-B1', day: 'Monday',    timeSlot: '08:00 - 09:30', room: 'Room 203', activity: 'Intermediate grammar' },
+  { id: 'ts-b1-mon-2', groupId: 'grp-B1', day: 'Monday',    timeSlot: '10:00 - 11:30', room: 'Room 203', activity: 'Reading & analysis' },
+  { id: 'ts-b1-mon-3', groupId: 'grp-B1', day: 'Monday',    timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-b1-mon-4', groupId: 'grp-B1', day: 'Monday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-b1-tue-1', groupId: 'grp-B1', day: 'Tuesday',   timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-b1-tue-2', groupId: 'grp-B1', day: 'Tuesday',   timeSlot: '10:00 - 11:30', room: 'Room 203', activity: 'Conversation club' },
+  { id: 'ts-b1-tue-3', groupId: 'grp-B1', day: 'Tuesday',   timeSlot: '12:00 - 13:30', room: 'Room 203', activity: 'Listening skills' },
+  { id: 'ts-b1-tue-4', groupId: 'grp-B1', day: 'Tuesday',   timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-b1-wed-1', groupId: 'grp-B1', day: 'Wednesday', timeSlot: '08:00 - 09:30', room: 'Room 203', activity: 'Essay structure' },
+  { id: 'ts-b1-wed-2', groupId: 'grp-B1', day: 'Wednesday', timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-b1-wed-3', groupId: 'grp-B1', day: 'Wednesday', timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-b1-wed-4', groupId: 'grp-B1', day: 'Wednesday', timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-b1-thu-1', groupId: 'grp-B1', day: 'Thursday',  timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-b1-thu-2', groupId: 'grp-B1', day: 'Thursday',  timeSlot: '10:00 - 11:30', room: 'Room 203', activity: 'Debate workshop' },
+  { id: 'ts-b1-thu-3', groupId: 'grp-B1', day: 'Thursday',  timeSlot: '12:00 - 13:30', room: 'Room 203', activity: 'Media English' },
+  { id: 'ts-b1-thu-4', groupId: 'grp-B1', day: 'Thursday',  timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-b1-fri-1', groupId: 'grp-B1', day: 'Friday',    timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-b1-fri-2', groupId: 'grp-B1', day: 'Friday',    timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-b1-fri-3', groupId: 'grp-B1', day: 'Friday',    timeSlot: '12:00 - 13:30', room: 'Room 203', activity: 'Week review' },
+  { id: 'ts-b1-fri-4', groupId: 'grp-B1', day: 'Friday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+
+  // ── grp-C1 (Advanced — Room 305, Teacher: Ana Torres) ───────────────────
+  { id: 'ts-c1-mon-1', groupId: 'grp-C1', day: 'Monday',    timeSlot: '08:00 - 09:30', room: 'Room 305', activity: 'Academic writing' },
+  { id: 'ts-c1-mon-2', groupId: 'grp-C1', day: 'Monday',    timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-c1-mon-3', groupId: 'grp-C1', day: 'Monday',    timeSlot: '12:00 - 13:30', room: 'Room 305', activity: 'Critical analysis' },
+  { id: 'ts-c1-mon-4', groupId: 'grp-C1', day: 'Monday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-c1-tue-1', groupId: 'grp-C1', day: 'Tuesday',   timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-c1-tue-2', groupId: 'grp-C1', day: 'Tuesday',   timeSlot: '10:00 - 11:30', room: 'Room 305', activity: 'Advanced vocabulary' },
+  { id: 'ts-c1-tue-3', groupId: 'grp-C1', day: 'Tuesday',   timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-c1-tue-4', groupId: 'grp-C1', day: 'Tuesday',   timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-c1-wed-1', groupId: 'grp-C1', day: 'Wednesday', timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-c1-wed-2', groupId: 'grp-C1', day: 'Wednesday', timeSlot: '10:00 - 11:30', room: 'Room 305', activity: 'Presentation skills' },
+  { id: 'ts-c1-wed-3', groupId: 'grp-C1', day: 'Wednesday', timeSlot: '12:00 - 13:30', room: 'Room 305', activity: 'Research methods' },
+  { id: 'ts-c1-wed-4', groupId: 'grp-C1', day: 'Wednesday', timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-c1-thu-1', groupId: 'grp-C1', day: 'Thursday',  timeSlot: '08:00 - 09:30', room: 'Room 305', activity: 'Literary criticism' },
+  { id: 'ts-c1-thu-2', groupId: 'grp-C1', day: 'Thursday',  timeSlot: '10:00 - 11:30', room: null,       activity: '' },
+  { id: 'ts-c1-thu-3', groupId: 'grp-C1', day: 'Thursday',  timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-c1-thu-4', groupId: 'grp-C1', day: 'Thursday',  timeSlot: '14:00 - 15:30', room: null,       activity: '' },
+  { id: 'ts-c1-fri-1', groupId: 'grp-C1', day: 'Friday',    timeSlot: '08:00 - 09:30', room: null,       activity: '' },
+  { id: 'ts-c1-fri-2', groupId: 'grp-C1', day: 'Friday',    timeSlot: '10:00 - 11:30', room: 'Room 305', activity: 'Seminar discussion' },
+  { id: 'ts-c1-fri-3', groupId: 'grp-C1', day: 'Friday',    timeSlot: '12:00 - 13:30', room: null,       activity: '' },
+  { id: 'ts-c1-fri-4', groupId: 'grp-C1', day: 'Friday',    timeSlot: '14:00 - 15:30', room: null,       activity: '' },
 ];
 
 // ---------------------------------------------------------------------------

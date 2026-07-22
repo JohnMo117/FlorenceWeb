@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './Teacher_Timetables.css';
 
-// TODO(security): Replace hardcoded teacherId with JWT-derived identity.
-const CURRENT_TEACHER_ID = 'T1';
-
 const Teacher_Timetables = () => {
+  const { user } = useAuth();
+  const teacherId = user?.refId || 'T1';
+
   const [times, setTimes] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetch(`/api/teachers/timetable?teacherId=${CURRENT_TEACHER_ID}`)
+    fetch(`/api/teachers/timetable?teacherId=${encodeURIComponent(teacherId)}`)
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load timetable');
         return res.json();
@@ -25,7 +26,7 @@ const Teacher_Timetables = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [teacherId]);
 
   if (loading) return <div className="teacher-timetables page-container"><p>Loading timetable...</p></div>;
   if (error) return <div className="teacher-timetables page-container"><p style={{ color: '#ef4444' }}>Error: {error}</p></div>;
@@ -34,7 +35,7 @@ const Teacher_Timetables = () => {
     <div className="teacher-timetables page-container">
       <section className="glass-panel timetable-panel">
         <h1>Teacher Timetable</h1>
-        <p>Your weekly class schedule.</p>
+        <p>Your weekly class schedule {user ? `(${user.name})` : ''}.</p>
 
         <div className="timetable-table-wrapper">
           <table className="timetable-table" aria-label="Teacher weekly timetable">

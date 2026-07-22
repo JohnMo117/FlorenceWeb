@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Home from './pages/Home';
@@ -21,37 +22,45 @@ import Teacher_Timetables from './pages/teachers/Teacher_Timetables';
 import About from './pages/About';
 import Login from './pages/Login';
 import FlorenceConnect from './pages/FlorenceConnect';
+import RoleGuard from './components/RoleGuard';
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="app-container">
-        <Header />
-        <main className="content">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/students" element={<Students />} />
-            <Route path="/students/grades" element={<StudentGrades />} />
-            <Route path="/students/timetable" element={<StudentTimetable />} />
-            <Route path="/students/classes" element={<StudentClasses />} />
-            <Route path="/students/announcements" element={<StudentAnnouncements />} />
+      <AuthProvider>
+        <div className="app-container">
+          <Header />
+          <main className="content">
+            <Routes>
+              <Route path="/" element={<Home />} />
+              {/* Student Routes */}
+              <Route path="/students" element={<RoleGuard allowedRoles={['Student']}><Students /></RoleGuard>} />
+              <Route path="/students/grades" element={<RoleGuard allowedRoles={['Student']}><StudentGrades /></RoleGuard>} />
+              <Route path="/students/timetable" element={<RoleGuard allowedRoles={['Student']}><StudentTimetable /></RoleGuard>} />
+              <Route path="/students/classes" element={<RoleGuard allowedRoles={['Student']}><StudentClasses /></RoleGuard>} />
+              <Route path="/students/announcements" element={<RoleGuard allowedRoles={['Student']}><StudentAnnouncements /></RoleGuard>} />
 
-            <Route path="/administration" element={<Administration />} />
-            <Route path="/administration/timetables" element={<AdminTimetables />} />
-            <Route path="/administration/classes" element={<AdminClasses />} />
-            <Route path="/administration/registration" element={<AdminRegistration />} />
+              {/* Administration Routes */}
+              <Route path="/administration" element={<RoleGuard allowedRoles={['Admin']}><Administration /></RoleGuard>} />
+              <Route path="/administration/timetables" element={<RoleGuard allowedRoles={['Admin']}><AdminTimetables /></RoleGuard>} />
+              <Route path="/administration/classes" element={<RoleGuard allowedRoles={['Admin']}><AdminClasses /></RoleGuard>} />
+              <Route path="/administration/registration" element={<RoleGuard allowedRoles={['Admin']}><AdminRegistration /></RoleGuard>} />
 
-            <Route path="/teachers" element={<Teachers />} />
-            <Route path="/teacher_grades" element={<Teacher_Grades />} />
-            <Route path="/teacher_broadcast" element={<Teacher_Broadcast />} />
-            <Route path="/teacher_timetables" element={<Teacher_Timetables />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/florenceConnect" element={<FlorenceConnect />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
+              {/* Teacher Routes */}
+              <Route path="/teachers" element={<RoleGuard allowedRoles={['Teacher']}><Teachers /></RoleGuard>} />
+              <Route path="/teacher_grades" element={<RoleGuard allowedRoles={['Teacher']}><Teacher_Grades /></RoleGuard>} />
+              <Route path="/teacher_broadcast" element={<RoleGuard allowedRoles={['Teacher']}><Teacher_Broadcast /></RoleGuard>} />
+              <Route path="/teacher_timetables" element={<RoleGuard allowedRoles={['Teacher']}><Teacher_Timetables /></RoleGuard>} />
+
+              {/* Public Routes */}
+              <Route path="/about" element={<About />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/florenceConnect" element={<FlorenceConnect />} />
+            </Routes>
+          </main>
+          <Footer />
+        </div>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Users, ShieldCheck, GraduationCap, Network, Info, LogIn } from 'lucide-react';
+import { Home, Users, ShieldCheck, GraduationCap, Network, Info, LogIn, LogOut, User } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import './Header.css';
 
 const Header = () => {
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -25,7 +27,7 @@ const Header = () => {
           <h1>Florence Web</h1>
         </Link>
       </div>
-      
+
       <nav className="header-nav">
         <ul>
           {navItems.map((item) => {
@@ -44,10 +46,23 @@ const Header = () => {
       </nav>
 
       <div className="header-actions">
-        <Link to="/login" className="btn btn-primary login-btn">
-          <LogIn size={18} className="mr-2" style={{marginRight: '8px'}} />
-          Log In
-        </Link>
+        {user ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.9)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <User size={16} />
+              <strong>{user.name}</strong> ({user.role})
+            </span>
+            <button className="btn btn-outline" onClick={logout} style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}>
+              <LogOut size={16} style={{ marginRight: '4px' }} />
+              Log Out
+            </button>
+          </div>
+        ) : (
+          <Link to="/login" className="btn btn-primary login-btn">
+            <LogIn size={18} className="mr-2" style={{ marginRight: '8px' }} />
+            Log In
+          </Link>
+        )}
       </div>
     </header>
   );

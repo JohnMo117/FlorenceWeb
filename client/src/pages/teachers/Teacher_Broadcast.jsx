@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import './Teacher_Broadcast.css';
 
-// TODO(security): Replace hardcoded teacherId with JWT-derived identity.
-const CURRENT_TEACHER_ID = 'T1';
-
 const Teacher_Broadcast = () => {
+  const { user } = useAuth();
+  const teacherId = user?.refId || 'T1';
+
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,11 +19,11 @@ const Teacher_Broadcast = () => {
   // Fetch teacher's announcements and groups
   useEffect(() => {
     Promise.all([
-      fetch(`/api/teachers/announcements?teacherId=${CURRENT_TEACHER_ID}`).then((r) => {
+      fetch(`/api/teachers/announcements?teacherId=${encodeURIComponent(teacherId)}`).then((r) => {
         if (!r.ok) throw new Error('Failed to load announcements');
         return r.json();
       }),
-      fetch(`/api/teachers/groups?teacherId=${CURRENT_TEACHER_ID}`).then((r) => {
+      fetch(`/api/teachers/groups?teacherId=${encodeURIComponent(teacherId)}`).then((r) => {
         if (!r.ok) throw new Error('Failed to load groups');
         return r.json();
       }),
@@ -36,7 +37,7 @@ const Teacher_Broadcast = () => {
         setError(err.message);
         setLoading(false);
       });
-  }, []);
+  }, [teacherId]);
 
   const onFieldChange = (event) => {
     const { name, value } = event.target;
@@ -55,7 +56,7 @@ const Teacher_Broadcast = () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          teacherId: CURRENT_TEACHER_ID,
+          teacherId: teacherId,
           title: formData.title.trim(),
           audience: formData.audience,
           message: formData.message.trim(),
